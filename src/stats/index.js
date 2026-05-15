@@ -1,43 +1,55 @@
 /**
- * Stats module entry point
- * Combines failure analysis and duration statistics
+ * Central stats aggregator — re-exports all report builders.
  */
 
 const { buildFailureReport, findHighFailureJobs } = require('./failureAnalyzer');
 const { computeDurationStats } = require('./durationStats');
+const { buildTrendReport } = require('./trendAnalyzer');
+const { buildPatternReport } = require('./patternDetector');
+const { buildAlertReport } = require('./alertDetector');
+const { buildAnomalyReport } = require('./anomalyDetector');
+const { buildRetryReport } = require('./retryDetector');
+const { buildCorrelationReport } = require('./correlationAnalyzer');
+const { buildFrequencyReport } = require('./jobFrequencyAnalyzer');
+const { buildDowntimeReport } = require('./downtimeTracker');
 
 /**
- * Generate a complete stats summary for all jobs
- * @param {Object} aggregated - output from aggregateJobs
- * @returns {Object} full stats report per job
+ * Generate a full stats report from aggregated job data.
+ * @param {object[]} jobs
+ * @returns {object}
  */
-function generateStatsReport(aggregated) {
-  const failureReport = buildFailureReport(aggregated);
-  const report = {};
-
-  for (const [jobName, data] of Object.entries(aggregated)) {
-    report[jobName] = {
-      ...failureReport[jobName],
-      duration: computeDurationStats(data.runs),
-    };
-  }
-
-  return report;
+function generateStatsReport(jobs) {
+  return {
+    failure: buildFailureReport(jobs),
+    duration: computeDurationStats(jobs),
+    trend: buildTrendReport(jobs),
+    pattern: buildPatternReport(jobs),
+    alerts: buildAlertReport(jobs),
+    anomalies: buildAnomalyReport(jobs),
+    retries: buildRetryReport(jobs),
+    correlations: buildCorrelationReport(jobs),
+    frequency: buildFrequencyReport(jobs)
+  };
 }
 
 /**
- * Get a list of jobs sorted by failure rate descending
- * @param {Object} aggregated
- * @param {number} threshold
- * @returns {Object[]}
+ * Return top N failing jobs.
+ * @param {object[]} jobs
+ * @param {number} n
+ * @returns {object[]}
  */
-function getTopFailingJobs(aggregated, threshold = 0) {
-  const summaries = Object.entries(aggregated).map(([name, data]) => ({
-    name,
-    ...data.summary,
-    runs: data.runs,
-  }));
-  return findHighFailureJobs(summaries, threshold).map(j => j.name);
+function getTopFailingJobs(jobs, n = 5) {
+  return findHighFailureJobs(jobs).slice(0, n);
 }
 
-module.exports = { generateStatsReport, getTopFailingJobs };
+/**
+ * Generate a downtime report given pre-bucketed timestamps and expected interval.
+ * @param {Object.<string, number[]>} jobTimestamps
+ * @param {number} expectedIntervalMs
+ * @returns {object}
+ */
+function generateDowntimeReport(jobTimestamps, expectedIntervalMs) {
+  return buildDowntimeReport(jobTimestamps, expectedIntervalMs);
+}
+
+module.exports = { generateStatsReport, getTopFailingJobs, generateDowntimeReport };
