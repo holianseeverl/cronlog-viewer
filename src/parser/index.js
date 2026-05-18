@@ -17,6 +17,10 @@ function processLog(rawLog) {
     throw new TypeError('rawLog must be a string');
   }
 
+  if (rawLog.trim().length === 0) {
+    return { jobMap: new Map(), summaries: [] };
+  }
+
   const entries = parseLog(rawLog);
   const jobMap = aggregateJobs(entries);
   const summaries = summarizeJobs(jobMap);
@@ -24,4 +28,21 @@ function processLog(rawLog) {
   return { jobMap, summaries };
 }
 
-module.exports = { processLog };
+/**
+ * Parse a log file from disk and return structured job execution data.
+ *
+ * @param {string} filePath - Absolute or relative path to the log file
+ * @returns {{ jobMap: Map, summaries: object[] }}
+ */
+function processLogFile(filePath) {
+  const fs = require('fs');
+
+  if (typeof filePath !== 'string' || filePath.trim().length === 0) {
+    throw new TypeError('filePath must be a non-empty string');
+  }
+
+  const rawLog = fs.readFileSync(filePath, 'utf8');
+  return processLog(rawLog);
+}
+
+module.exports = { processLog, processLogFile };
